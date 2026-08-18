@@ -19,12 +19,115 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Organize Android Project Structure
+        run: |
+          echo "Organizing files into proper Android Gradle structure..."
+          mkdir -p app/src/main/java/com/app/betguru
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/mipmap-anydpi-v26
+
+          # Move flat files to correct Android directories
+          [ -f "MainActivity.kt" ] && cp MainActivity.kt app/src/main/java/com/app/betguru/
+          [ -f "AndroidManifest.xml" ] && cp AndroidManifest.xml app/src/main/
+          [ -f "activity_main.xml" ] && cp activity_main.xml app/src/main/res/layout/
+          [ -f "colors.xml" ] && cp colors.xml app/src/main/res/values/
+          [ -f "strings.xml" ] && cp strings.xml app/src/main/res/values/
+          [ -f "themes.xml" ] && cp themes.xml app/src/main/res/values/
+          [ -f "ic_launcher.xml" ] && cp ic_launcher.xml app/src/main/res/mipmap-anydpi-v26/
+          [ -f "ic_launcher_background.xml" ] && cp ic_launcher_background.xml app/src/main/res/drawable/
+
+          # Write root settings and build files
+          cat << 'EOF' > settings.gradle.kts
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "BetGuru"
+include(":app")
+EOF
+
+          cat << 'EOF' > build.gradle.kts
+plugins {
+    id("com.android.application") version "8.2.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+}
+EOF
+
+          cat << 'EOF' > gradle.properties
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+android.nonTransitiveRClass=true
+EOF
+
+          cat << 'EOF' > app/build.gradle.kts
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+android {
+    namespace = "com.app.betguru"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.app.betguru"
+        minSdk = 21
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
+        }
+        debug {
+            isDebuggable = true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+dependencies {
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.material:material:1.11.0")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("androidx.webkit:webkit:1.10.0")
+    implementation("androidx.activity:activity-ktx:1.8.2")
+}
+EOF
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.4'
 
-      - name: Build Android APK with Gradle
+      - name: Build Android APK
         run: gradle assembleDebug --stacktrace
 
       - name: Upload Signed APK
